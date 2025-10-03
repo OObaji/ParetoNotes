@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Lecture Notetaker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 1);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+        .lds-ripple {
+          display: inline-block;
+          position: relative;
+          width: 80px;
+          height: 80px;
+        }
+        .lds-ripple div {
+          position: absolute;
+          border: 4px solid #4f46e5; /* indigo */
+          opacity: 1;
+          border-radius: 50%;
+          animation: lds-ripple 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+        }
+        .dark .lds-ripple div {
+            border-color: #a5b4fc; /* indigo-300 */
+        }
+        .lds-ripple div:nth-child(2) {
+          animation-delay: -0.5s;
+        }
+        @keyframes lds-ripple {
+          0% {
+            top: 36px;
+            left: 36px;
+            width: 0;
+            height: 0;
+            opacity: 0;
+          }
+          4.9% {
+            top: 36px;
+            left: 36px;
+            width: 0;
+            height: 0;
+            opacity: 0;
+          }
+          5% {
+            top: 36px;
+            left: 36px;
+            width: 0;
+            height: 0;
+            opacity: 1;
+          }
+          100% {
+            top: 0px;
+            left: 0px;
+            width: 72px;
+            height: 72px;
+            opacity: 0;
+          }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center min-h-screen">
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">Lecture Notetaker AI</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2 text-lg">Record your lectures and get instantly organized notes.</p>
+        </header>
+
+        <main class="w-full">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 mb-8">
+                <div class="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                    <button id="startBtn" class="w-full sm:w-auto flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        Start Recording
+                    </button>
+                    <button id="stopBtn" class="w-full sm:w-auto flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg" disabled>
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6"></path></svg>
+                        Stop Recording
+                    </button>
+                     <div id="recordingIndicator" class="hidden items-center text-red-500">
+                        <div class="w-4 h-4 rounded-full bg-red-500 pulse-ring mr-2"></div>
+                        <span class="font-medium">Recording...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row md:space-x-8 w-full">
+                <!-- Transcription Section -->
+                <div id="transcriptionContainer" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 mb-8 md:mb-0 md:w-1/2" style="display: none;">
+                    <h2 class="text-2xl font-bold mb-4">Live Transcription</h2>
+                    <div id="transcription" class="w-full h-96 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-y-auto">
+                        <p class="text-gray-500 dark:text-gray-400 italic">Transcription will appear here...</p>
+                    </div>
+                </div>
+
+                <!-- Summary Section -->
+                <div id="summaryContainer" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 md:w-1/2" style="display: none;">
+                     <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Organized Notes</h2>
+                        <button id="copyBtn" class="flex items-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-300">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            Copy
+                        </button>
+                    </div>
+                    <div id="summary" class="w-full h-96 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-y-auto relative">
+                         <p class="text-gray-500 dark:text-gray-400 italic">Notes will be organized here in real-time...</p>
+                         <div id="loadingIndicator" class="hidden absolute inset-0 bg-gray-50/50 dark:bg-gray-700/50 flex-col items-center justify-center">
+                             <div class="lds-ripple"><div></div><div></div></div>
+                             <p class="text-lg font-medium text-gray-600 dark:text-gray-400">Organizing...</p>
+                        </div>
+                    </div>
+                     <div id="errorMessage" class="hidden mt-4 text-center p-4 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 rounded-lg"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const transcriptionDiv = document.getElementById('transcription');
+        const summaryDiv = document.getElementById('summary');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const transcriptionContainer = document.getElementById('transcriptionContainer');
+        const summaryContainer = document.getElementById('summaryContainer');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let recognition;
+        let finalTranscript = '';
+        let organizeInterval;
+        let lastOrganizedTranscript = '';
+        let isOrganizing = false;
+
+        // Check for browser support
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                recordingIndicator.classList.remove('hidden');
+                recordingIndicator.classList.add('flex');
+                
+                transcriptionContainer.style.display = 'block';
+                transcriptionDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400 italic">Listening...</p>';
+                
+                summaryContainer.style.display = 'block';
+                summaryDiv.querySelector('p').innerHTML = 'Notes will be organized here in real-time...';
+                
+                finalTranscript = '';
+                lastOrganizedTranscript = '';
+                isOrganizing = false;
+                
+                organizeInterval = setInterval(organizeInRealTime, 10000); // Organize every 10 seconds
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                transcriptionDiv.innerHTML = finalTranscript + '<i class="text-gray-500">' + interimTranscript + '</i>';
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error:", event.error);
+                showError(`Error during recognition: ${event.error}`);
+            };
+
+            recognition.onend = () => {
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                recordingIndicator.classList.add('hidden');
+                recordingIndicator.classList.remove('flex');
+                clearInterval(organizeInterval);
+                if (finalTranscript.trim().length > 0) {
+                    organizeInRealTime(true); // Final run to catch any remaining text
+                }
+            };
+        } else {
+            showError("Your browser does not support the Web Speech API. Please try Google Chrome.");
+            startBtn.disabled = true;
+        }
+
+        startBtn.addEventListener('click', () => {
+            if (recognition) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        recognition.start();
+                    })
+                    .catch(err => {
+                        console.error("Error getting microphone access:", err);
+                        showError("Microphone access was denied. Please allow microphone access in your browser settings.");
+                    });
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (recognition) {
+                recognition.stop();
+            }
+        });
+
+        async function organizeInRealTime(isFinalRun = false) {
+            if (isOrganizing) return;
+            if (finalTranscript.trim() === lastOrganizedTranscript.trim() && !isFinalRun) return;
+            if (finalTranscript.trim().length === 0) return;
+
+            isOrganizing = true;
+            loadingIndicator.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+
+            const currentTranscript = finalTranscript;
+            
+            const apiKey = ""; // API Key will be handled by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const systemPrompt = "You are an AI note-taking assistant. Your primary function is to reformat a raw lecture transcript into well-structured notes in real-time. You MUST NOT summarize, shorten, or omit any part of the original text. Your only job is to add structure. Use Markdown for formatting: use headings (#, ##) for topics, bullet points (* or -) for lists and details, and bold (`**text**`) for key terms. The output should be the complete, original text, just organized.";
+            const userQuery = `Please reformat the following transcript without losing any content:\n\n${currentTranscript}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error ? errorData.error.message : 'API request failed');
+                }
+                
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const organizedText = candidate.content.parts[0].text;
+                    const lines = organizedText.split(/\r\n|\n|\r/);
+                    let htmlContent = '';
+                    let inList = false;
+
+                    lines.forEach(line => {
+                        line = line.trim();
+                        if (!line) return;
+
+                        if (line.startsWith('###')) {
+                            if (inList) { htmlContent += '</ul>'; inList = false; }
+                            htmlContent += `<h3 class="text-lg font-semibold mt-4 mb-2">${line.substring(3).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h3>`;
+                        } else if (line.startsWith('##')) {
+                            if (inList) { htmlContent += '</ul>'; inList = false; }
+                            htmlContent += `<h2 class="text-xl font-bold mt-4 mb-2">${line.substring(2).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h2>`;
+                        } else if (line.startsWith('#')) {
+                            if (inList) { htmlContent += '</ul>'; inList = false; }
+                            htmlContent += `<h1 class="text-2xl font-bold mt-4 mb-2">${line.substring(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h1>`;
+                        } else if (line.startsWith('* ') || line.startsWith('- ')) {
+                            if (!inList) {
+                                htmlContent += '<ul class="list-disc list-inside space-y-2 pl-4">';
+                                inList = true;
+                            }
+                            let listItem = line.substring(2).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+                            htmlContent += `<li>${listItem}</li>`;
+                        } else {
+                            if (inList) { htmlContent += '</ul>'; inList = false; }
+                            let paragraph = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+                            htmlContent += `<p class="mb-2">${paragraph}</p>`;
+                        }
+                    });
+
+                    if (inList) { htmlContent += '</ul>'; }
+                    summaryDiv.innerHTML = htmlContent;
+                    // Re-add the loading indicator div for the next run
+                    summaryDiv.appendChild(loadingIndicator);
+
+                } else {
+                    throw new Error("Invalid response format from the API.");
+                }
+
+            } catch (error) {
+                console.error("Error organizing notes:", error);
+                showError(`Failed to generate notes: ${error.message}`);
+            } finally {
+                isOrganizing = false;
+                lastOrganizedTranscript = currentTranscript;
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        copyBtn.addEventListener('click', () => {
+            // Temporarily remove loading indicator for clean copy
+            const wasLoading = !loadingIndicator.classList.contains('hidden');
+            loadingIndicator.classList.add('hidden');
+            
+            const textToCopy = summaryDiv.innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = textToCopy;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            try {
+                 document.execCommand('copy');
+                 copyBtn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!';
+                 setTimeout(() => {
+                    copyBtn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Copy';
+                 }, 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                showError("Failed to copy notes to clipboard.");
+            } finally {
+                 document.body.removeChild(tempTextArea);
+                 if (wasLoading) {
+                     loadingIndicator.classList.remove('hidden');
+                 }
+            }
+        });
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+    </script>
+</body>
+</html>
+
