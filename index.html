@@ -121,6 +121,7 @@
             transition: opacity 0.5s ease-in;
             opacity: 0;
             visibility: hidden;
+            position: relative;
         }
     </style>
 </head>
@@ -140,6 +141,12 @@
             <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">Lecture Notetaker AI</h1>
             <p class="text-gray-600 dark:text-gray-400 mt-2 text-lg">Your intelligent assistant for lectures, documents, and seminars.</p>
         </header>
+
+        <div class="absolute top-4 right-4 md:top-8 md:right-8">
+            <button id="settingsBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Settings">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
 
         <nav class="mb-8 flex flex-wrap justify-center border-b border-gray-200 dark:border-gray-700">
             <button id="navTranscribe" class="px-4 sm:px-6 py-3 text-base sm:text-lg font-medium nav-active whitespace-nowrap">Live Transcribe</button>
@@ -294,6 +301,28 @@
         </main>
     </div>
 
+    <div id="apiKeyModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md transform transition-all duration-300 ease-in-out scale-95 opacity-0" id="modalContent">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold">API Key Required</h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-3xl font-light">&times;</button>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">
+                To use the AI features, please provide your Google AI Gemini API key. This key is stored securely in your browser's local storage and is never sent to our servers.
+            </p>
+            <div class="mb-4">
+                <label for="apiKeyInput" class="block mb-2 text-sm font-medium">Your Gemini API Key</label>
+                <input type="password" id="apiKeyInput" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 transition" placeholder="Enter your API key here">
+                <p id="apiKeyError" class="text-red-500 text-sm mt-1 hidden">Please enter a valid API key.</p>
+            </div>
+            <div class="flex justify-between items-center">
+                 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline dark:text-blue-400">How to get an API key?</a>
+                <button id="saveApiKeyBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 w-24">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         // --- Landing Page Logic ---
         const landingPage = document.getElementById('landingPage');
@@ -314,6 +343,52 @@
                 appContainer.style.opacity = '1';
             }, 500); // Match CSS transition duration
         });
+
+        // --- API Key Modal Logic ---
+        const settingsBtn = document.getElementById('settingsBtn');
+        const apiKeyModal = document.getElementById('apiKeyModal');
+        const modalContent = document.getElementById('modalContent');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const apiKeyError = document.getElementById('apiKeyError');
+
+        function openApiKeyModal() {
+            apiKeyModal.classList.remove('hidden');
+            setTimeout(() => { // For transition effect
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeApiKeyModal() {
+            modalContent.classList.add('scale-95', 'opacity-0');
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            setTimeout(() => apiKeyModal.classList.add('hidden'), 300); // Match transition duration
+        }
+
+        settingsBtn.addEventListener('click', openApiKeyModal);
+        closeModalBtn.addEventListener('click', closeApiKeyModal);
+        
+        saveApiKeyBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            apiKeyError.classList.add('hidden');
+            if (key) {
+                localStorage.setItem('geminiApiKey', key);
+                saveApiKeyBtn.textContent = 'Saved!';
+                setTimeout(() => {
+                    closeApiKeyModal();
+                    saveApiKeyBtn.textContent = 'Save Key';
+                }, 1000);
+            } else {
+                apiKeyError.classList.remove('hidden');
+                apiKeyInput.focus();
+            }
+        });
+
+        function getApiKey() {
+            return localStorage.getItem('geminiApiKey');
+        }
 
         // Set workerSrc for pdf.js
         if (window.pdfjsLib) {
@@ -518,6 +593,9 @@
                 console.error("Error generating conceptual notes:", error);
                 showError(errorDiv, `Failed to generate notes: ${error.message}`);
                 outputDiv.innerHTML = `<p class="text-red-500">Could not generate notes. Please try again.</p>`;
+                if (error.message.includes("API Key not set")) {
+                    openApiKeyModal();
+                }
             } finally {
                 loadingDiv.classList.add('hidden');
             }
@@ -682,6 +760,9 @@
                 console.error("Error organizing notes:", error);
                 showError(errorDiv, `Failed to generate notes: ${error.message}`);
                 outputDiv.innerHTML = `<p class="text-red-500">Could not generate notes. Please try again.</p>`;
+                if (error.message.includes("API Key not set")) {
+                    openApiKeyModal();
+                }
             } finally {
                 isOrganizing = false;
                 if(outputDiv.id === 'summary') lastOrganizedTranscript = textToOrganize;
@@ -703,13 +784,19 @@
                 console.error("Error generating seminar analysis:", error);
                 showError(seminarErrorMessage, `Failed to analyze seminar notes: ${error.message}`);
                 seminarNotesDiv.innerHTML = `<p class="text-red-500">Could not generate the analysis. Please try again.</p>`;
+                 if (error.message.includes("API Key not set")) {
+                    openApiKeyModal();
+                }
             } finally {
                 seminarLoadingIndicator.classList.add('hidden');
             }
         }
 
         async function callGeminiAPI(userQuery, systemPrompt) {
-            const apiKey = "";
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                throw new Error("API Key not set. Please add your key in the settings.");
+            }
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             
             const payload = {
@@ -815,5 +902,4 @@
     </script>
 </body>
 </html>
-
 
