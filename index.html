@@ -5,10 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Lecture Notetaker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrollbars on landing */
+        }
+        #landingPage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: #111827; /* bg-gray-900 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 100;
+            transition: opacity 0.5s ease-out;
+        }
+        #landingPage::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(
+                600px circle at var(--x) var(--y),
+                rgba(37, 99, 235, 0.2), /* blue-700 with opacity */
+                transparent 40%
+            );
+            z-index: -1;
+            transition: background 0.1s linear;
         }
         .pulse-ring {
             box-shadow: 0 0 0 0 rgba(239, 68, 68, 1);
@@ -74,16 +104,52 @@
             opacity: 0;
           }
         }
+        .nav-active {
+            --tw-text-opacity: 1;
+            color: rgba(79, 70, 229, var(--tw-text-opacity));
+            border-bottom-width: 2px;
+            --tw-border-opacity: 1;
+            border-color: rgba(79, 70, 229, var(--tw-border-opacity));
+        }
+        .dark .nav-active {
+             --tw-text-opacity: 1;
+            color: rgba(165, 180, 252, var(--tw-text-opacity));
+             --tw-border-opacity: 1;
+            border-color: rgba(165, 180, 252, var(--tw-border-opacity));
+        }
+        #appContainer {
+            transition: opacity 0.5s ease-in;
+            opacity: 0;
+            visibility: hidden;
+        }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center min-h-screen">
-    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <header class="text-center mb-8">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div id="landingPage">
+        <div class="z-10 p-4">
+            <h1 class="text-5xl md:text-7xl font-bold text-white mb-4">Welcome to Notetaker AI</h1>
+            <p class="text-xl md:text-2xl text-gray-300 mb-8">Your intelligent assistant for perfect lecture notes.</p>
+            <button id="getStartedBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg text-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                Get Started
+            </button>
+        </div>
+    </div>
+    
+    <div id="appContainer" class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-4">
             <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">Lecture Notetaker AI</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-2 text-lg">Record your lectures and get instantly organized notes.</p>
+            <p class="text-gray-600 dark:text-gray-400 mt-2 text-lg">Your intelligent assistant for lectures, documents, and seminars.</p>
         </header>
 
-        <main class="w-full">
+        <nav class="mb-8 flex flex-wrap justify-center border-b border-gray-200 dark:border-gray-700">
+            <button id="navTranscribe" class="px-4 sm:px-6 py-3 text-base sm:text-lg font-medium nav-active whitespace-nowrap">Live Transcribe</button>
+            <button id="navLecture" class="px-4 sm:px-6 py-3 text-base sm:text-lg font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 whitespace-nowrap">Lecture</button>
+            <button id="navFile" class="px-4 sm:px-6 py-3 text-base sm:text-lg font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 whitespace-nowrap">Document Notetaker</button>
+            <button id="navSeminar" class="px-4 sm:px-6 py-3 text-base sm:text-lg font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 whitespace-nowrap">Seminar Notes</button>
+        </nav>
+
+        <main id="transcribePage" class="w-full">
+            <!-- Live Transcribe content -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 mb-8">
                 <div class="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
                     <button id="startBtn" class="w-full sm:w-auto flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
@@ -100,17 +166,13 @@
                     </div>
                 </div>
             </div>
-
             <div class="flex flex-col md:flex-row md:space-x-8 w-full">
-                <!-- Transcription Section -->
                 <div id="transcriptionContainer" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 mb-8 md:mb-0 md:w-1/2" style="display: none;">
                     <h2 class="text-2xl font-bold mb-4">Live Transcription</h2>
                     <div id="transcription" class="w-full h-96 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-y-auto">
                         <p class="text-gray-500 dark:text-gray-400 italic">Transcription will appear here...</p>
                     </div>
                 </div>
-
-                <!-- Summary Section -->
                 <div id="summaryContainer" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 md:w-1/2" style="display: none;">
                      <div class="flex justify-between items-center mb-4">
                         <h2 class="text-2xl font-bold">Organized Notes</h2>
@@ -130,9 +192,162 @@
                 </div>
             </div>
         </main>
+        
+        <main id="lecturePage" class="w-full hidden">
+            <!-- Lecture content -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 mb-8">
+                <div class="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                    <button id="startLectureBtn" class="w-full sm:w-auto flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        Start Lecture Capture
+                    </button>
+                    <button id="stopLectureBtn" class="w-full sm:w-auto flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg" disabled>
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6"></path></svg>
+                        Stop Lecture Capture
+                    </button>
+                     <div id="lectureRecordingIndicator" class="hidden items-center text-red-500">
+                        <div class="w-4 h-4 rounded-full bg-red-500 pulse-ring mr-2"></div>
+                        <span class="font-medium">Capturing Lecture...</span>
+                    </div>
+                </div>
+            </div>
+            <div id="lectureNotesContainer" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 hidden">
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">Comprehensive Lecture Notes</h2>
+                    <button id="copyLectureBtn" class="flex items-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-300">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        Copy Notes
+                    </button>
+                </div>
+                <div id="lectureNotes" class="w-full min-h-[24rem] p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-y-auto relative">
+                     <p class="text-gray-500 dark:text-gray-400 italic">Your intelligent lecture notes will appear here after capture...</p>
+                     <div id="lectureLoadingIndicator" class="hidden absolute inset-0 bg-gray-50/80 dark:bg-gray-700/80 flex-col items-center justify-center">
+                         <div class="lds-ripple"><div></div><div></div></div>
+                         <p class="text-lg font-medium text-gray-600 dark:text-gray-400">Generating Notes...</p>
+                    </div>
+                </div>
+                 <div id="lectureErrorMessage" class="hidden mt-4 text-center p-4 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 rounded-lg"></div>
+            </div>
+        </main>
+
+        <main id="filePage" class="w-full hidden">
+             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 mb-8 max-w-2xl mx-auto">
+                <h2 class="text-2xl font-bold mb-4 text-center">Upload & Organize Document</h2>
+                <div class="flex flex-col items-center space-y-4">
+                    <input type="file" id="fileInput" accept=".pptx,.docx,.pdf" class="block w-full max-w-md text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                    <button id="generateNotesBtn" class="w-full sm:w-auto flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Generate Notes
+                    </button>
+                </div>
+            </div>
+            
+            <div id="fileNotesContainer" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 hidden">
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">Organized Notes from Document</h2>
+                    <button id="copyFileBtn" class="flex items-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-300">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        Copy Notes
+                    </button>
+                </div>
+                <div id="fileNotes" class="w-full min-h-[24rem] p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-y-auto relative">
+                     <p class="text-gray-500 dark:text-gray-400 italic">Your organized notes will appear here...</p>
+                     <div id="fileLoadingIndicator" class="hidden absolute inset-0 bg-gray-50/80 dark:bg-gray-700/80 flex-col items-center justify-center">
+                         <div class="lds-ripple"><div></div><div></div></div>
+                         <p class="text-lg font-medium text-gray-600 dark:text-gray-400">Extracting & Organizing...</p>
+                    </div>
+                </div>
+                 <div id="fileErrorMessage" class="hidden mt-4 text-center p-4 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 rounded-lg"></div>
+            </div>
+        </main>
+
+        <main id="seminarPage" class="w-full hidden">
+             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 mb-8 max-w-3xl mx-auto">
+                <h2 class="text-2xl font-bold mb-4 text-center">Analyze Seminar Document</h2>
+                <div class="flex flex-col items-center space-y-4">
+                    <input type="file" id="seminarFileInput" accept=".pptx,.docx,.pdf" class="block w-full max-w-md text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                    <textarea id="seminarQuestion" rows="3" class="w-full max-w-md p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500" placeholder="Ask a specific question about the document..."></textarea>
+                    <button id="analyzeSeminarBtn" class="w-full sm:w-auto flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                        Analyze & Answer
+                    </button>
+                </div>
+            </div>
+            
+            <div id="seminarNotesContainer" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 hidden">
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">Seminar Analysis</h2>
+                    <button id="copySeminarBtn" class="flex items-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition duration-300">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        Copy Analysis
+                    </button>
+                </div>
+                <div id="seminarNotes" class="w-full min-h-[24rem] p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-y-auto relative">
+                     <p class="text-gray-500 dark:text-gray-400 italic">Your seminar notes and answer will appear here...</p>
+                     <div id="seminarLoadingIndicator" class="hidden absolute inset-0 bg-gray-50/80 dark:bg-gray-700/80 flex-col items-center justify-center">
+                         <div class="lds-ripple"><div></div><div></div></div>
+                         <p class="text-lg font-medium text-gray-600 dark:text-gray-400">Analyzing Document...</p>
+                    </div>
+                </div>
+                 <div id="seminarErrorMessage" class="hidden mt-4 text-center p-4 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 rounded-lg"></div>
+            </div>
+        </main>
     </div>
 
     <script>
+        // --- Landing Page Logic ---
+        const landingPage = document.getElementById('landingPage');
+        const getStartedBtn = document.getElementById('getStartedBtn');
+        const appContainer = document.getElementById('appContainer');
+
+        landingPage.addEventListener('mousemove', e => {
+            landingPage.style.setProperty('--x', e.clientX + 'px');
+            landingPage.style.setProperty('--y', e.clientY + 'px');
+        });
+
+        getStartedBtn.addEventListener('click', () => {
+            landingPage.style.opacity = '0';
+            setTimeout(() => {
+                landingPage.style.display = 'none';
+                document.body.style.overflow = 'auto'; // Restore scrolling for the app
+                appContainer.style.visibility = 'visible';
+                appContainer.style.opacity = '1';
+            }, 500); // Match CSS transition duration
+        });
+
+        // Set workerSrc for pdf.js
+        if (window.pdfjsLib) {
+             pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+        }
+       
+        // --- Page Navigation ---
+        const navTranscribe = document.getElementById('navTranscribe');
+        const navLecture = document.getElementById('navLecture');
+        const navFile = document.getElementById('navFile');
+        const navSeminar = document.getElementById('navSeminar');
+        const transcribePage = document.getElementById('transcribePage');
+        const lecturePage = document.getElementById('lecturePage');
+        const filePage = document.getElementById('filePage');
+        const seminarPage = document.getElementById('seminarPage');
+
+        function setActiveNav(activeButton, activePage) {
+            const pages = [transcribePage, lecturePage, filePage, seminarPage];
+            const buttons = [navTranscribe, navLecture, navFile, navSeminar];
+            
+            pages.forEach(page => page.classList.add('hidden'));
+            buttons.forEach(button => button.classList.remove('nav-active'));
+
+            activePage.classList.remove('hidden');
+            activeButton.classList.add('nav-active');
+        }
+
+        navTranscribe.addEventListener('click', () => setActiveNav(navTranscribe, transcribePage));
+        navLecture.addEventListener('click', () => setActiveNav(navLecture, lecturePage));
+        navFile.addEventListener('click', () => setActiveNav(navFile, filePage));
+        navSeminar.addEventListener('click', () => setActiveNav(navSeminar, seminarPage));
+
+
+        // --- Live Transcribe Elements & Logic ---
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const copyBtn = document.getElementById('copyBtn');
@@ -150,7 +365,6 @@
         let lastOrganizedTranscript = '';
         let isOrganizing = false;
 
-        // Check for browser support
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true;
@@ -162,18 +376,14 @@
                 stopBtn.disabled = false;
                 recordingIndicator.classList.remove('hidden');
                 recordingIndicator.classList.add('flex');
-                
                 transcriptionContainer.style.display = 'block';
                 transcriptionDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400 italic">Listening...</p>';
-                
                 summaryContainer.style.display = 'block';
                 summaryDiv.querySelector('p').innerHTML = 'Notes will be organized here in real-time...';
-                
                 finalTranscript = '';
                 lastOrganizedTranscript = '';
                 isOrganizing = false;
-                
-                organizeInterval = setInterval(organizeInRealTime, 10000); // Organize every 10 seconds
+                organizeInterval = setInterval(() => organizeText(finalTranscript, summaryDiv, loadingIndicator, errorMessage), 10000);
             };
 
             recognition.onresult = (event) => {
@@ -190,7 +400,7 @@
 
             recognition.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
-                showError(`Error during recognition: ${event.error}`);
+                showError(errorMessage, `Error during recognition: ${event.error}`);
             };
 
             recognition.onend = () => {
@@ -200,155 +410,410 @@
                 recordingIndicator.classList.remove('flex');
                 clearInterval(organizeInterval);
                 if (finalTranscript.trim().length > 0) {
-                    organizeInRealTime(true); // Final run to catch any remaining text
+                    organizeText(finalTranscript, summaryDiv, loadingIndicator, errorMessage, true);
                 }
             };
         } else {
-            showError("Your browser does not support the Web Speech API. Please try Google Chrome.");
+            showError(errorMessage, "Your browser does not support the Web Speech API. Please try Google Chrome.");
             startBtn.disabled = true;
         }
 
         startBtn.addEventListener('click', () => {
             if (recognition) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(stream => {
-                        recognition.start();
-                    })
+                    .then(stream => recognition.start())
                     .catch(err => {
                         console.error("Error getting microphone access:", err);
-                        showError("Microphone access was denied. Please allow microphone access in your browser settings.");
+                        showError(errorMessage, "Microphone access was denied. Please allow microphone access in your browser settings.");
                     });
             }
         });
 
         stopBtn.addEventListener('click', () => {
-            if (recognition) {
-                recognition.stop();
+            if (recognition) recognition.stop();
+        });
+
+        // --- Lecture Notetaker Logic ---
+        const startLectureBtn = document.getElementById('startLectureBtn');
+        const stopLectureBtn = document.getElementById('stopLectureBtn');
+        const lectureRecordingIndicator = document.getElementById('lectureRecordingIndicator');
+        const lectureNotesContainer = document.getElementById('lectureNotesContainer');
+        const lectureNotesDiv = document.getElementById('lectureNotes');
+        const lectureLoadingIndicator = document.getElementById('lectureLoadingIndicator');
+        const lectureErrorMessage = document.getElementById('lectureErrorMessage');
+        const copyLectureBtn = document.getElementById('copyLectureBtn');
+        
+        let lectureRecognition;
+        let lectureTranscript = '';
+
+        if ('webkitSpeechRecognition' in window) {
+            lectureRecognition = new webkitSpeechRecognition();
+            lectureRecognition.continuous = true;
+            lectureRecognition.interimResults = false;
+            lectureRecognition.lang = 'en-US';
+
+            lectureRecognition.onstart = () => {
+                startLectureBtn.disabled = true;
+                stopLectureBtn.disabled = false;
+                lectureRecordingIndicator.classList.remove('hidden');
+                lectureRecordingIndicator.classList.add('flex');
+                lectureNotesContainer.style.display = 'block';
+                lectureNotesDiv.innerHTML = `<p class="text-gray-500 dark:text-gray-400 italic">Listening to the lecture...</p>`;
+                lectureTranscript = '';
+            };
+
+            lectureRecognition.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        lectureTranscript += event.results[i][0].transcript + ' ';
+                    }
+                }
+            };
+
+             lectureRecognition.onerror = (event) => {
+                console.error("Lecture recognition error:", event.error);
+                showError(lectureErrorMessage, `Error during recognition: ${event.error}`);
+            };
+
+            lectureRecognition.onend = () => {
+                startLectureBtn.disabled = false;
+                stopLectureBtn.disabled = true;
+                lectureRecordingIndicator.classList.add('hidden');
+                lectureRecordingIndicator.classList.remove('flex');
+                if (lectureTranscript.trim().length > 0) {
+                    generateLectureNotes(lectureTranscript, lectureNotesDiv, lectureLoadingIndicator, lectureErrorMessage);
+                }
+            };
+        } else {
+             showError(lectureErrorMessage, "Your browser does not support the Web Speech API. Please try Google Chrome.");
+             startLectureBtn.disabled = true;
+        }
+        
+        startLectureBtn.addEventListener('click', () => {
+             if (lectureRecognition) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => lectureRecognition.start())
+                    .catch(err => {
+                        console.error("Error getting microphone access:", err);
+                        showError(lectureErrorMessage, "Microphone access was denied.");
+                    });
             }
         });
 
-        async function organizeInRealTime(isFinalRun = false) {
-            if (isOrganizing) return;
-            if (finalTranscript.trim() === lastOrganizedTranscript.trim() && !isFinalRun) return;
-            if (finalTranscript.trim().length === 0) return;
+        stopLectureBtn.addEventListener('click', () => {
+            if(lectureRecognition) lectureRecognition.stop();
+        });
+
+        async function generateLectureNotes(transcript, outputDiv, loadingDiv, errorDiv) {
+            loadingDiv.classList.remove('hidden');
+            showError(errorDiv, '', true);
+
+            const systemPrompt = "You are an AI academic assistant. Your task is to take a transcript or a topic and create comprehensive, well-structured study notes. Do NOT simply transcribe the text. Instead, you must: 1. Identify the main ideas, key concepts, and important points. 2. Structure the notes logically with clear headings, subheadings, and bullet points using Markdown. 3. Proactively add definitions for key terms mentioned. 4. Include simple examples or analogies to clarify complex topics. 5. Break down multi-step processes or arguments into easy-to-follow lists. The final output should be a rich, educational document that enhances understanding beyond the raw transcript.";
+            const userQuery = `Please generate comprehensive study notes from the following content:\n\n"""${transcript}"""`;
+
+            try {
+                const notes = await callGeminiAPI(userQuery, systemPrompt);
+                outputDiv.innerHTML = markdownToHtml(notes);
+            } catch (error) {
+                console.error("Error generating conceptual notes:", error);
+                showError(errorDiv, `Failed to generate notes: ${error.message}`);
+                outputDiv.innerHTML = `<p class="text-red-500">Could not generate notes. Please try again.</p>`;
+            } finally {
+                loadingDiv.classList.add('hidden');
+            }
+        }
+
+
+        // --- Document Notetaker Elements & Logic ---
+        const fileInput = document.getElementById('fileInput');
+        const generateNotesBtn = document.getElementById('generateNotesBtn');
+        const fileNotesContainer = document.getElementById('fileNotesContainer');
+        const fileNotesDiv = document.getElementById('fileNotes');
+        const fileLoadingIndicator = document.getElementById('fileLoadingIndicator');
+        const fileErrorMessage = document.getElementById('fileErrorMessage');
+        const copyFileBtn = document.getElementById('copyFileBtn');
+        
+        generateNotesBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                showError(fileErrorMessage, "Please select a file first.");
+                return;
+            }
+
+            fileNotesContainer.style.display = 'block';
+            fileLoadingIndicator.classList.remove('hidden');
+            showError(fileErrorMessage, '', true);
+            fileNotesDiv.innerHTML = `<p class="text-gray-500 dark:text-gray-400 italic">Extracting text from ${file.name}...</p>`;
+
+            try {
+                const textContent = await extractTextFromFile(file);
+                if (!textContent || !textContent.trim()) {
+                     throw new Error(`Could not find any text in the file.`);
+                }
+                fileNotesDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400 italic">Organizing extracted text...</p>';
+                await organizeText(textContent, fileNotesDiv, fileLoadingIndicator, fileErrorMessage, true);
+            } catch (err) {
+                 console.error("Error processing file:", err);
+                 showError(fileErrorMessage, `Error: ${err.message}`);
+                 fileNotesDiv.innerHTML = `<p class="text-red-500">Failed to process file.</p>`;
+                 fileLoadingIndicator.classList.add('hidden');
+            }
+        });
+
+        // --- Seminar Notetaker Elements & Logic ---
+        const seminarFileInput = document.getElementById('seminarFileInput');
+        const seminarQuestion = document.getElementById('seminarQuestion');
+        const analyzeSeminarBtn = document.getElementById('analyzeSeminarBtn');
+        const seminarNotesContainer = document.getElementById('seminarNotesContainer');
+        const seminarNotesDiv = document.getElementById('seminarNotes');
+        const seminarLoadingIndicator = document.getElementById('seminarLoadingIndicator');
+        const seminarErrorMessage = document.getElementById('seminarErrorMessage');
+        const copySeminarBtn = document.getElementById('copySeminarBtn');
+
+        analyzeSeminarBtn.addEventListener('click', async () => {
+            const file = seminarFileInput.files[0];
+            const question = seminarQuestion.value;
+            if (!file) {
+                showError(seminarErrorMessage, "Please select a seminar document first.");
+                return;
+            }
+             if (!question.trim()) {
+                showError(seminarErrorMessage, "Please enter a question about the document.");
+                return;
+            }
+
+            seminarNotesContainer.style.display = 'block';
+            seminarLoadingIndicator.classList.remove('hidden');
+            showError(seminarErrorMessage, '', true);
+            seminarNotesDiv.innerHTML = `<p class="text-gray-500 dark:text-gray-400 italic">Extracting text from ${file.name}...</p>`;
+
+            try {
+                const textContent = await extractTextFromFile(file);
+                if (!textContent || !textContent.trim()) {
+                     throw new Error(`Could not find any text in the file.`);
+                }
+                seminarNotesDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400 italic">Analyzing document and answering your question...</p>';
+                await generateSeminarNotes(textContent, question);
+            } catch (err) {
+                 console.error("Error processing seminar file:", err);
+                 showError(seminarErrorMessage, `Error: ${err.message}`);
+                 seminarNotesDiv.innerHTML = `<p class="text-red-500">Failed to process file.</p>`;
+                 seminarLoadingIndicator.classList.add('hidden');
+            }
+        });
+
+        async function extractTextFromFile(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            if (extension === 'pptx') {
+                return extractTextFromPPTX(file);
+            } else if (extension === 'docx') {
+                return extractTextFromDOCX(file);
+            } else if (extension === 'pdf') {
+                return extractTextFromPDF(file);
+            } else {
+                throw new Error("Unsupported file type. Please upload a .pptx, .docx, or .pdf file.");
+            }
+        }
+        
+        async function extractTextFromPPTX(file) {
+            const zip = await JSZip.loadAsync(file);
+            const slidePromises = [];
+            zip.folder("ppt/slides").forEach((relativePath, file) => {
+                if (relativePath.startsWith('slide') && relativePath.endsWith('.xml')) {
+                    slidePromises.push(file.async("string"));
+                }
+            });
+            const slideContents = await Promise.all(slidePromises);
+            let fullText = "";
+            slideContents.forEach(xmlContent => {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+                const textNodes = xmlDoc.getElementsByTagName("a:t");
+                for (let i = 0; i < textNodes.length; i++) {
+                    fullText += textNodes[i].textContent + "\n";
+                }
+            });
+            return fullText;
+        }
+
+        async function extractTextFromDOCX(file) {
+            const zip = await JSZip.loadAsync(file);
+            const content = await zip.file("word/document.xml").async("string");
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(content, "text/xml");
+            const textNodes = xmlDoc.getElementsByTagName("w:t");
+            let fullText = "";
+            for (let i = 0; i < textNodes.length; i++) {
+                fullText += textNodes[i].textContent + "\n";
+            }
+            return fullText;
+        }
+
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            let fullText = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                fullText += textContent.items.map(item => item.str).join(" ") + "\n";
+            }
+            return fullText;
+        }
+
+        // --- Generic & Helper Functions ---
+        async function organizeText(textToOrganize, outputDiv, loadingDiv, errorDiv, isFinalRun = false) {
+            if (isOrganizing && !isFinalRun) return; 
+            if (textToOrganize.trim().length === 0) return;
+            if (outputDiv.id === 'summary' && textToOrganize.trim() === lastOrganizedTranscript.trim() && !isFinalRun) return;
 
             isOrganizing = true;
-            loadingIndicator.classList.remove('hidden');
-            errorMessage.classList.add('hidden');
+            loadingDiv.classList.remove('hidden');
+            showError(errorDiv, '', true);
 
-            const currentTranscript = finalTranscript;
+            const systemPrompt = "You are an AI note-taking assistant. Your primary function is to reformat a raw transcript into well-structured notes. You MUST NOT summarize, shorten, or omit any part of the original text. Your only job is to add structure. Use Markdown for formatting: use headings (#, ##) for topics, bullet points (* or -) for lists and details, and bold (`**text**`) for key terms. The output should be the complete, original text, just organized.";
+            const userQuery = `Please reformat the following transcript without losing any content:\n\n${textToOrganize}`;
             
-            const apiKey = ""; // API Key will be handled by the environment
+            try {
+                const organizedText = await callGeminiAPI(userQuery, systemPrompt);
+                outputDiv.innerHTML = markdownToHtml(organizedText);
+                if(outputDiv.id === 'summary') outputDiv.appendChild(loadingDiv); 
+            } catch (error) {
+                console.error("Error organizing notes:", error);
+                showError(errorDiv, `Failed to generate notes: ${error.message}`);
+                outputDiv.innerHTML = `<p class="text-red-500">Could not generate notes. Please try again.</p>`;
+            } finally {
+                isOrganizing = false;
+                if(outputDiv.id === 'summary') lastOrganizedTranscript = textToOrganize;
+                loadingDiv.classList.add('hidden');
+            }
+        }
+
+        async function generateSeminarNotes(textContent, question) {
+            seminarLoadingIndicator.classList.remove('hidden');
+            showError(seminarErrorMessage, '', true);
+
+            const systemPrompt = "You are an expert AI assistant for academic seminars. Your task is to perform two actions based on the provided text: First, create a highly organized and comprehensive set of notes from the document. Do not summarize or omit information; structure it logically using Markdown with headings, subheadings, bullet points, and bold text for key concepts. Second, provide a clear and direct answer to the user's specific question, citing information ONLY from the provided document text. Structure your entire response with '# Organized Notes' as the first main heading and '# Answer to Your Question' as the second main heading.";
+            const userQuery = `Based on the following document, please create notes and answer my question.\n\nDOCUMENT TEXT:\n"""\n${textContent}\n"""\n\nQUESTION:\n${question}`;
+            
+            try {
+                const analysis = await callGeminiAPI(userQuery, systemPrompt);
+                seminarNotesDiv.innerHTML = markdownToHtml(analysis);
+            } catch (error) {
+                console.error("Error generating seminar analysis:", error);
+                showError(seminarErrorMessage, `Failed to analyze seminar notes: ${error.message}`);
+                seminarNotesDiv.innerHTML = `<p class="text-red-500">Could not generate the analysis. Please try again.</p>`;
+            } finally {
+                seminarLoadingIndicator.classList.add('hidden');
+            }
+        }
+
+        async function callGeminiAPI(userQuery, systemPrompt) {
+            const apiKey = "";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-            const systemPrompt = "You are an AI note-taking assistant. Your primary function is to reformat a raw lecture transcript into well-structured notes in real-time. You MUST NOT summarize, shorten, or omit any part of the original text. Your only job is to add structure. Use Markdown for formatting: use headings (#, ##) for topics, bullet points (* or -) for lists and details, and bold (`**text**`) for key terms. The output should be the complete, original text, just organized.";
-            const userQuery = `Please reformat the following transcript without losing any content:\n\n${currentTranscript}`;
-
+            
             const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
             };
-            
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error ? errorData.error.message : 'API request failed');
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error ? errorData.error.message : 'API request failed');
+            }
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+                return candidate.content.parts[0].text;
+            } else {
+                throw new Error("Invalid response format from the API.");
+            }
+        }
+
+        function markdownToHtml(text) {
+            const lines = text.split(/\r\n|\n|\r/);
+            let htmlContent = '';
+            let inList = false;
+
+            lines.forEach(line => {
+                line = line.trim();
+                // Don't skip blank lines within the content, render them as breaks
+                if (!line) {
+                    if (inList) { htmlContent += '</ul>'; inList = false; }
+                    htmlContent += '<br>';
+                    return;
                 }
-                
-                const result = await response.json();
-                const candidate = result.candidates?.[0];
 
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    const organizedText = candidate.content.parts[0].text;
-                    const lines = organizedText.split(/\r\n|\n|\r/);
-                    let htmlContent = '';
-                    let inList = false;
-
-                    lines.forEach(line => {
-                        line = line.trim();
-                        if (!line) return;
-
-                        if (line.startsWith('###')) {
-                            if (inList) { htmlContent += '</ul>'; inList = false; }
-                            htmlContent += `<h3 class="text-lg font-semibold mt-4 mb-2">${line.substring(3).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h3>`;
-                        } else if (line.startsWith('##')) {
-                            if (inList) { htmlContent += '</ul>'; inList = false; }
-                            htmlContent += `<h2 class="text-xl font-bold mt-4 mb-2">${line.substring(2).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h2>`;
-                        } else if (line.startsWith('#')) {
-                            if (inList) { htmlContent += '</ul>'; inList = false; }
-                            htmlContent += `<h1 class="text-2xl font-bold mt-4 mb-2">${line.substring(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h1>`;
-                        } else if (line.startsWith('* ') || line.startsWith('- ')) {
-                            if (!inList) {
-                                htmlContent += '<ul class="list-disc list-inside space-y-2 pl-4">';
-                                inList = true;
-                            }
-                            let listItem = line.substring(2).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
-                            htmlContent += `<li>${listItem}</li>`;
-                        } else {
-                            if (inList) { htmlContent += '</ul>'; inList = false; }
-                            let paragraph = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
-                            htmlContent += `<p class="mb-2">${paragraph}</p>`;
-                        }
-                    });
-
-                    if (inList) { htmlContent += '</ul>'; }
-                    summaryDiv.innerHTML = htmlContent;
-                    // Re-add the loading indicator div for the next run
-                    summaryDiv.appendChild(loadingIndicator);
-
+                if (line.startsWith('###')) {
+                    if (inList) { htmlContent += '</ul>'; inList = false; }
+                    htmlContent += `<h3 class="text-lg font-semibold mt-4 mb-2">${line.substring(3).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h3>`;
+                } else if (line.startsWith('##')) {
+                    if (inList) { htmlContent += '</ul>'; inList = false; }
+                    htmlContent += `<h2 class="text-xl font-bold mt-4 mb-2">${line.substring(2).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h2>`;
+                } else if (line.startsWith('#')) {
+                    if (inList) { htmlContent += '</ul>'; inList = false; }
+                    htmlContent += `<h1 class="text-2xl font-bold mt-6 mb-3 border-b-2 pb-2 border-gray-200 dark:border-gray-700">${line.substring(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</h1>`;
+                } else if (line.startsWith('* ') || line.startsWith('- ')) {
+                    if (!inList) {
+                        htmlContent += '<ul class="list-disc list-inside space-y-2 pl-4">';
+                        inList = true;
+                    }
+                    let listItem = line.substring(2).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+                    htmlContent += `<li>${listItem}</li>`;
                 } else {
-                    throw new Error("Invalid response format from the API.");
+                    if (inList) { htmlContent += '</ul>'; inList = false; }
+                    let paragraph = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+                    htmlContent += `<p class="mb-2">${paragraph}</p>`;
                 }
+            });
 
-            } catch (error) {
-                console.error("Error organizing notes:", error);
-                showError(`Failed to generate notes: ${error.message}`);
-            } finally {
-                isOrganizing = false;
-                lastOrganizedTranscript = currentTranscript;
-                loadingIndicator.classList.add('hidden');
-            }
+            if (inList) { htmlContent += '</ul>'; }
+            return htmlContent;
         }
 
-        copyBtn.addEventListener('click', () => {
-            // Temporarily remove loading indicator for clean copy
-            const wasLoading = !loadingIndicator.classList.contains('hidden');
-            loadingIndicator.classList.add('hidden');
-            
-            const textToCopy = summaryDiv.innerText;
-            const tempTextArea = document.createElement('textarea');
-            tempTextArea.value = textToCopy;
-            document.body.appendChild(tempTextArea);
-            tempTextArea.select();
-            try {
-                 document.execCommand('copy');
-                 copyBtn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!';
-                 setTimeout(() => {
-                    copyBtn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Copy';
-                 }, 2000);
-            } catch (err) {
-                console.error('Failed to copy text: ', err);
-                showError("Failed to copy notes to clipboard.");
-            } finally {
-                 document.body.removeChild(tempTextArea);
-                 if (wasLoading) {
-                     loadingIndicator.classList.remove('hidden');
-                 }
-            }
-        });
+        function setupCopyButton(button, sourceDiv, errorDiv) {
+            button.addEventListener('click', () => {
+                const loadingIndicator = sourceDiv.querySelector('.lds-ripple')?.parentElement;
+                const wasLoading = loadingIndicator && !loadingIndicator.classList.contains('hidden');
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                
+                const textToCopy = sourceDiv.innerText;
+                const tempTextArea = document.createElement('textarea');
+                tempTextArea.value = textToCopy;
+                document.body.appendChild(tempTextArea);
+                tempTextArea.select();
+                try {
+                     document.execCommand('copy');
+                     const originalText = button.innerHTML;
+                     button.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!';
+                     setTimeout(() => { button.innerHTML = originalText; }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    showError(errorDiv, "Failed to copy notes to clipboard.");
+                } finally {
+                     document.body.removeChild(tempTextArea);
+                     if (wasLoading && loadingIndicator) loadingIndicator.classList.remove('hidden');
+                }
+            });
+        }
         
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.classList.remove('hidden');
-        }
+        setupCopyButton(copyBtn, summaryDiv, errorMessage);
+        setupCopyButton(copyLectureBtn, lectureNotesDiv, lectureErrorMessage);
+        setupCopyButton(copyFileBtn, fileNotesDiv, fileErrorMessage);
+        setupCopyButton(copySeminarBtn, seminarNotesDiv, seminarErrorMessage);
 
+        function showError(element, message, hide = false) {
+            element.textContent = message;
+            if (hide) {
+                 element.classList.add('hidden');
+            } else {
+                element.classList.remove('hidden');
+            }
+        }
     </script>
 </body>
 </html>
+
 
